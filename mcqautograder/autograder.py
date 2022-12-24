@@ -7,6 +7,7 @@ import cv2
 from numpy import linalg as LA
 import imutils
 import argparse
+import csv
 
 
 def read_image(path):
@@ -176,7 +177,8 @@ def plot_marked_answer_sheet(o, t, img, pts):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--verbose", help="Print detailed messages", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--verbose", help="Print detailed messages",
+                    action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme",
                     default="samples/marking_scheme.jpg")
 parser.add_argument(
@@ -187,10 +189,18 @@ parser.add_argument(
     "--debug", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument(
     "--showmarked", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument(
+    "--studentslist", help="Name of the file containing a list of the students' index numbers in csv format", default="samples/students_list.csv")
 
 args = parser.parse_args()
 
 print("Running autograder...")
+
+with open(args.studentslist, mode='r') as students_csv:
+    csv_reader = csv.DictReader(students_csv)
+    students = [row['Index No'] for row in csv_reader]
+
+student_marks = dict()
 
 template_img = read_image(args.template)
 marking_scheme_img = read_image(args.markingscheme)
@@ -201,7 +211,17 @@ bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
 marking_scheme = get_answers(
     template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True, show_intermediate_results=args.debug)
 
-for answer_script_path in sorted(glob.glob(answer_scripts_directory+'*.jpg')):
+i = 0
+answer_script_files_list = sorted(glob.glob(answer_scripts_directory+'*.jpg'))
+
+if len(answer_script_files_list) != len(students):
+    print(
+        f"Mismatch in the number of entries in the provided {args.studentslist} csv file and the number of scanned scripts in the {args.answers} directory.")
+    print(f"Entries in the csv file: {len(students)}")
+    print(f"Entries in the scanned directory: {len(answer_script_files_list)}")
+    sys.exit()
+
+for answer_script_path in answer_script_files_list:
     answer_script_img = read_image(answer_script_path)
 
     answer_script = get_answers(template_img, answer_script_img,
@@ -217,6 +237,16 @@ for answer_script_path in sorted(glob.glob(answer_scripts_directory+'*.jpg')):
     if args.showmarked:
         plot_marked_answer_sheet(
             marking_scheme, answer_script, template_img, bubble_coordinates)
-    print(f"Result: {len(correct)}/90, Wrong: {len(wrong)}/90")
+    print(
+        f"Result for {students[i]}: {len(correct)}/90, Wrong: {len(wrong)}/90")
+    student_marks[students[i]] = len(correct)
+    i += 1
 
-print("Autograding is completed.")
+with open(args.studentslist, 'w') as output_file:
+    writer = csv.writer(output_file)
+    writer.writerow(['Index No', 'Autograded Final Mark'])
+    for key, value in student_marks.items():
+        writer.writerow([key, value])
+
+print(
+    f"Autograding is completed. Output has been saved in {args.studentslist}")
