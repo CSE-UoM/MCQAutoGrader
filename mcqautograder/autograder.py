@@ -152,25 +152,25 @@ def calculate_score(o, y, distribution):
 
 
 def plot_marked_answer_sheet(o, t, img, pts):
-    wrong = []
+    incorrect = []
     correct = []
     # print(np.array(pts).shape[0])
     for i in range(np.array(pts).shape[0]):
         if t[i] == 1:
             if o[i] != t[i]:
-                wrong.append(pts[i])
+                incorrect.append(pts[i])
             if o[i] == t[i]:
                 correct.append(pts[i])
 
     correct = np.array(correct)
-    wrong = np.array(wrong)
+    incorrect = np.array(incorrect)
     # print(correct)
     plt.figure(figsize=(15, 15))
     plt.imshow(np.array(img), cmap='gray')
     if len(correct) > 0:
         plt.scatter(correct[:, 0], correct[:, 1], c='g', s=15)
-    if len(wrong) > 0:
-        plt.scatter(wrong[:, 0], wrong[:, 1], c='r', s=15)
+    if len(incorrect) > 0:
+        plt.scatter(incorrect[:, 0], incorrect[:, 1], c='r', s=15)
     plt.title(
         "Correct answers are marked green, wrong answers are marked red and unresponded are left blank")
     plt.show()
@@ -227,21 +227,22 @@ for answer_script_path in answer_script_files_list:
     answer_script = get_answers(template_img, answer_script_img,
                                 bubble_coordinates, is_marking_scheme=False, show_intermediate_results=args.debug)
 
-    correct, wrong = calculate_score(
+    correct, incorrect = calculate_score(
         marking_scheme, answer_script, choice_distribution)
     if args.verbose:
         print(
             f"Our observation for the first {len(choice_distribution)} questions are :")
         print("Correct answers are:", correct)
-        print("Incorrect or Unresponded answers are:", wrong)
+        print("Incorrect or Unresponded answers are:", incorrect)
     if args.showmarked:
         plot_marked_answer_sheet(
             marking_scheme, answer_script, template_img, bubble_coordinates)
     print(
-        f"Result for {students[i]}: {len(correct)}/90, Wrong: {len(wrong)}/90")
+        f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
     student_marks[students[i]] = len(correct)
     i += 1
 
+# write the autograded output to the csv file
 with open(args.studentslist, 'w') as output_file:
     writer = csv.writer(output_file)
     writer.writerow(['Index No', 'Autograded Final Mark'])
