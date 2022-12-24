@@ -117,7 +117,7 @@ def check_neighbours_pixels(img, points, is_marking_scheme=True, show_intermedia
     return answers.astype('int')
 
 
-def get_answers(img1, img2, points, is_marking_scheme):
+def get_answers(img1, img2, points, is_marking_scheme, show_intermediate_results=False):
     # Find homography Matrix
     homography = get_homography(img1, img2)
     # Find related points in the two image
@@ -129,7 +129,7 @@ def get_answers(img1, img2, points, is_marking_scheme):
 
     # Check neighbouring pixels and get whether option is marked or not
     answer = check_neighbours_pixels(
-        img2, correspondingPoints, is_marking_scheme=is_marking_scheme)
+        img2, correspondingPoints, is_marking_scheme, show_intermediate_results)
     return answer
 
 
@@ -176,10 +176,18 @@ def plot_marked_answer_sheet(o, t, img, pts):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--verbose", help="Print detailed messages", default=False)
-parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme", default="samples/marking_scheme.jpg")
-parser.add_argument("--template", help="Path of to template of the bubble sheet", default="samples/template.jpg")
-parser.add_argument("--answers", help="Path of to directory containing scanned answer scripts", default="samples/answers/")
+parser.add_argument("--verbose", help="Print detailed messages", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme",
+                    default="samples/marking_scheme.jpg")
+parser.add_argument(
+    "--template", help="Path to the template of the bubble sheet", default="samples/template.jpg")
+parser.add_argument(
+    "--answers", help="Path to the directory containing scanned answer scripts", default="samples/answers/")
+parser.add_argument(
+    "--debug", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument(
+    "--showmarked", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
+
 args = parser.parse_args()
 
 print("Running autograder...")
@@ -191,13 +199,13 @@ answer_scripts_directory = args.answers
 
 bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
 marking_scheme = get_answers(
-    template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True)
+    template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True, show_intermediate_results=args.debug)
 
 for answer_script_path in sorted(glob.glob(answer_scripts_directory+'*.jpg')):
     answer_script_img = read_image(answer_script_path)
 
     answer_script = get_answers(template_img, answer_script_img,
-                                bubble_coordinates, is_marking_scheme=False)
+                                bubble_coordinates, is_marking_scheme=False, show_intermediate_results=args.debug)
 
     correct, wrong = calculate_score(
         marking_scheme, answer_script, choice_distribution)
@@ -206,7 +214,9 @@ for answer_script_path in sorted(glob.glob(answer_scripts_directory+'*.jpg')):
             f"Our observation for the first {len(choice_distribution)} questions are :")
         print("Correct answers are:", correct)
         print("Incorrect or Unresponded answers are:", wrong)
-    # plot_marked_answer_sheet(marking_scheme, answer_script,template_img, bubble_coordinates)
+    if args.showmarked:
+        plot_marked_answer_sheet(
+            marking_scheme, answer_script, template_img, bubble_coordinates)
     print(f"Result: {len(correct)}/90, Wrong: {len(wrong)}/90")
 
 print("Autograding is completed.")
