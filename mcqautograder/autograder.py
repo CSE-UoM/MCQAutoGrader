@@ -1,4 +1,5 @@
 import sys
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -174,36 +175,38 @@ def plot_marked_answer_sheet(o, t, img, pts):
     plt.show()
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--inp1", help="Path to template image")
-# parser.add_argument("--inp2", help="Path to ideal answer key")
-# parser.add_argument("--inp3", help="Path of to be checked")
-# args = parser.parse_args()
+parser = argparse.ArgumentParser()
+parser.add_argument("--verbose", help="Print detailed messages", default=False)
+parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme", default="samples/marking_scheme.jpg")
+parser.add_argument("--template", help="Path of to template of the bubble sheet", default="samples/template.jpg")
+parser.add_argument("--answers", help="Path of to directory containing scanned answer scripts", default="samples/answers/")
+args = parser.parse_args()
 
+print("Running autograder...")
 
-template_img = read_image(
-    "/home/gayashan/projects/cse/2022/MCQAutoGrader/samples/template.jpg")
-marking_scheme_img = read_image(
-    "/home/gayashan/projects/cse/2022/MCQAutoGrader/samples/marking_scheme.jpg")
-answer_script_img = read_image(
-    "/home/gayashan/Downloads/samples/SKM_558e22122315350_0002.jpg")
-
-print("Running...")
+template_img = read_image(args.template)
+marking_scheme_img = read_image(args.markingscheme)
+answer_scripts_directory = args.answers
 
 
 bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
-
 marking_scheme = get_answers(
     template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True)
-answer_script = get_answers(template_img, answer_script_img,
-                            bubble_coordinates, is_marking_scheme=False)
 
-correct, wrong = calculate_score(
-    marking_scheme, answer_script, choice_distribution)
-print(
-    f"Our observation for the first {len(choice_distribution)} questions are :")
-print("Correct answers are:", correct)
-print("Incorrect or Unresponded answers are:", wrong)
-plot_marked_answer_sheet(marking_scheme, answer_script,
-                         template_img, bubble_coordinates)
-print(f"Result: {len(correct)}/90, Wrong: {len(wrong)}/90")
+for answer_script_path in sorted(glob.glob(answer_scripts_directory+'*.jpg')):
+    answer_script_img = read_image(answer_script_path)
+
+    answer_script = get_answers(template_img, answer_script_img,
+                                bubble_coordinates, is_marking_scheme=False)
+
+    correct, wrong = calculate_score(
+        marking_scheme, answer_script, choice_distribution)
+    if args.verbose:
+        print(
+            f"Our observation for the first {len(choice_distribution)} questions are :")
+        print("Correct answers are:", correct)
+        print("Incorrect or Unresponded answers are:", wrong)
+    # plot_marked_answer_sheet(marking_scheme, answer_script,template_img, bubble_coordinates)
+    print(f"Result: {len(correct)}/90, Wrong: {len(wrong)}/90")
+
+print("Autograding is completed.")
