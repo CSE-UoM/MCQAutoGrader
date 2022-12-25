@@ -16,6 +16,12 @@ Typical use of the tool require the template, marking scheme, directory containi
 
 `python3 mcqautograder/autograder.py --template samples/template.jpg --markingscheme samples/marking_scheme.jpg --answers samples/answers/ --studentslist samples/students_list.csv`
 
+MCQAutoGrader also contains a multiversion_autograder tool to grade exam papers with multiple versions. Typical use of this tool would require templates and marking schemes for each version, directory containing scanned answer scripts, and a list of students and the corresponding exam paper version given to the student as a csv file to be provided as follows. Refer the [samples](/samples/) directory.
+
+`python3 mcqautograder/multiversion_autograder.py --templates samples/templates/ --markingschemes samples/marking_schemes/ --answers samples/answers/ --studentslist samples/students_list.csv --numversions 2`
+
+Please note that here the templates and corresponding marking schemes should be renamed to just the version number (eg: 1.jpg, 2.jpg, ...).
+
 If you have any questions, please contact: [gayashan@cse.mrt.ac.lk](mailto:gayashan@cse.mrt.ac.lk)
 
 This project is inspired and based on the following work. Special thanks should go to these authors for their contributions:
