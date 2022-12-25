@@ -1,4 +1,5 @@
 import sys
+import os
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
@@ -175,6 +176,8 @@ def plot_marked_answer_sheet(o, t, img, pts):
         "Correct answers are marked green, wrong answers are marked red and unresponded are left blank")
     plt.show()
 
+FINAL_MARK = 'mark'
+FILE_NAME = 'file_name'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--verbose", help="Print detailed messages",
@@ -188,31 +191,35 @@ parser.add_argument(
 parser.add_argument(
     "--debug", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument(
-    "--showmarked", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
+    "--showmarked", help="Show the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument(
     "--studentslist", help="Name of the file containing a list of the students' index numbers in csv format", default="samples/students_list.csv")
+parser.add_argument(
+    "--output", help="Name of the output csv file containing a list of the students and respective marks in csv format", default="output.csv")
+parser.add_argument(
+    "--ignoreinputcsv", help="Ignore the input list of students given as a CSV file and use the file name instead", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
 print("Running autograder...")
 
-with open(args.studentslist, mode='r') as students_csv:
-    csv_reader = csv.DictReader(students_csv)
-    students = [row['Index No'] for row in csv_reader]
-
-student_marks = dict()
-
 template_img = read_image(args.template)
 marking_scheme_img = read_image(args.markingscheme)
 answer_scripts_directory = args.answers
-
-
+student_marks = dict()
 bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
 marking_scheme = get_answers(
     template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True, show_intermediate_results=args.debug)
 
 i = 0
 answer_script_files_list = sorted(glob.glob(answer_scripts_directory+'*.jpg'))
+
+if not args.ignoreinputcsv:
+    with open(args.studentslist, mode='r') as students_csv:
+        csv_reader = csv.DictReader(students_csv)
+        students = [row['Index No'] for row in csv_reader]
+else:
+    students = [f.split('/')[-1] for f in answer_script_files_list]
 
 if len(answer_script_files_list) != len(students):
     print(
@@ -221,8 +228,8 @@ if len(answer_script_files_list) != len(students):
     print(f"Entries in the scanned directory: {len(answer_script_files_list)}")
     sys.exit()
 
-for answer_script_path in answer_script_files_list:
-    answer_script_img = read_image(answer_script_path)
+for answer_script_file_path in answer_script_files_list:
+    answer_script_img = read_image(answer_script_file_path)
 
     answer_script = get_answers(template_img, answer_script_img,
                                 bubble_coordinates, is_marking_scheme=False, show_intermediate_results=args.debug)
@@ -237,17 +244,18 @@ for answer_script_path in answer_script_files_list:
     if args.showmarked:
         plot_marked_answer_sheet(
             marking_scheme, answer_script, template_img, bubble_coordinates)
-    print(
-        f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
-    student_marks[students[i]] = len(correct)
+
+    print(f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
+    
+    student_marks[students[i]] = {FINAL_MARK: len(correct), FILE_NAME: answer_script_file_path}
     i += 1
 
 # write the autograded output to the csv file
-with open(args.studentslist, 'w') as output_file:
+with open(args.output, 'w') as output_file:
     writer = csv.writer(output_file)
-    writer.writerow(['Index No', 'Autograded Final Mark'])
+    writer.writerow(['Index No', 'Autograded Final Mark', 'Answer Script'])
     for key, value in student_marks.items():
-        writer.writerow([key, value])
+        writer.writerow([key, value[FINAL_MARK], value[FILE_NAME]])
 
 print(
     f"Autograding is completed. Output has been saved in {args.studentslist}")
