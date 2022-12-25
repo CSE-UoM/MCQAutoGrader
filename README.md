@@ -25,7 +25,12 @@ MCQAutoGrader also contains a multiversion_autograder tool to grade exam papers 
 
 Please note that here the templates and corresponding marking schemes should be renamed to just the version number (eg: 1.jpg, 2.jpg, ...).
 
+## Contact
+
 If you have any questions, please contact: [gayashan@cse.mrt.ac.lk](mailto:gayashan@cse.mrt.ac.lk)
+
+
+## Acknowledgements
 
 This project is inspired and based on the following work. Special thanks should go to these authors for their contributions:
 
