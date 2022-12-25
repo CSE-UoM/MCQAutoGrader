@@ -28,12 +28,13 @@ def app():
     parser.add_argument(
         "--output", help="Name of the output csv file containing a list of the students and respective marks in csv format", default="output.csv")
     parser.add_argument(
-        "--numversions", help="Number of versions", default=2)
+        "--numversions", help="Number of versions", default=2, type=int)
 
     args = parser.parse_args()
 
     print("Running multi version autograder...")
 
+    num_versions = args.numversions
     template_imgs = {}
     marking_scheme_imgs = {}
     marking_schemes = {}
