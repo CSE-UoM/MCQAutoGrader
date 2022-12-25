@@ -10,6 +10,9 @@ import imutils
 import argparse
 import csv
 
+FINAL_MARK = 'mark'
+FILE_NAME = 'file_name'
+
 
 def read_image(path):
     img = Image.open(path).convert('L')
@@ -178,8 +181,6 @@ def plot_marked_answer_sheet(o, t, img, pts):
 
 
 def app():
-    FINAL_MARK = 'mark'
-    FILE_NAME = 'file_name'
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", help="Print detailed messages",
@@ -266,8 +267,8 @@ def app():
             writer.writerow([key, value[FINAL_MARK], value[FILE_NAME]])
 
     print(
-
         f"Autograding is complete. Output has been saved in {args.output}.")
+
 
 if __name__ == "__main__":
     app()
