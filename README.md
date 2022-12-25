@@ -8,6 +8,7 @@ The project uses [poetry](https://python-poetry.org/docs/) for dependency manage
 
 `poetry install`
 
+## Using the autograder tool
 To find more information about the tool execute the following command after you have set up the project:
 
 `python3 mcqautograder/autograder.py --help`
@@ -15,6 +16,8 @@ To find more information about the tool execute the following command after you 
 Typical use of the tool require the template, marking scheme, directory containing scanned answer scripts, a list of students as a csv file to be provided as follows. Refer the [samples](/samples/) directory.
 
 `python3 mcqautograder/autograder.py --template samples/template.jpg --markingscheme samples/marking_scheme.jpg --answers samples/answers/ --studentslist samples/students_list.csv`
+
+## Using the multiversion_autograder tool
 
 MCQAutoGrader also contains a multiversion_autograder tool to grade exam papers with multiple versions. Typical use of this tool would require templates and marking schemes for each version, directory containing scanned answer scripts, and a list of students and the corresponding exam paper version given to the student as a csv file to be provided as follows. Refer the [samples](/samples/) directory.
 
