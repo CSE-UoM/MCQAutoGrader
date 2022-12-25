@@ -12,6 +12,10 @@ To find more information about the tool execute the following command after you 
 
 `python3 mcqautograder/autograder.py --help`
 
+Typical use of the tool require the template, marking scheme, directory containing scanned answer scripts, a list of students as a csv file to be provided as follows. Refer the [samples](/samples/) directory.
+
+`python3 mcqautograder/autograder.py --template samples/template.jpg --markingscheme samples/marking_scheme.jpg --answers samples/answers/ --studentslist samples/students_list.csv`
+
 If you have any questions, please contact: [gayashan@cse.mrt.ac.lk](mailto:gayashan@cse.mrt.ac.lk)
 
 This project is inspired and based on the following work. Special thanks should go to these authors for their contributions:
