@@ -176,6 +176,7 @@ def plot_marked_answer_sheet(o, t, img, pts):
         "Correct answers are marked green, wrong answers are marked red and unresponded are left blank")
     plt.show()
 
+
 FINAL_MARK = 'mark'
 FILE_NAME = 'file_name'
 
@@ -205,19 +206,22 @@ print("Running autograder...")
 
 template_img = read_image(args.template)
 marking_scheme_img = read_image(args.markingscheme)
-answer_scripts_directory = args.answers
 student_marks = dict()
 bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
 marking_scheme = get_answers(
     template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True, show_intermediate_results=args.debug)
 
 i = 0
-answer_script_files_list = sorted(glob.glob(answer_scripts_directory+'*.jpg'))
+answer_script_files_list = sorted(glob.glob(args.answers +'*.jpg'))
 
 if not args.ignoreinputcsv:
-    with open(args.studentslist, mode='r') as students_csv:
-        csv_reader = csv.DictReader(students_csv)
-        students = [row['Index No'] for row in csv_reader]
+    try:
+        with open(args.studentslist, mode='r') as students_csv:
+            csv_reader = csv.DictReader(students_csv)
+            students = [row['Index No'] for row in csv_reader]
+    except FileNotFoundError as e:
+        print("CSV file is not available: ", e)
+        students = [f.split('/')[-1] for f in answer_script_files_list]
 else:
     students = [f.split('/')[-1] for f in answer_script_files_list]
 
@@ -245,9 +249,11 @@ for answer_script_file_path in answer_script_files_list:
         plot_marked_answer_sheet(
             marking_scheme, answer_script, template_img, bubble_coordinates)
 
-    print(f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
-    
-    student_marks[students[i]] = {FINAL_MARK: len(correct), FILE_NAME: answer_script_file_path}
+    print(
+        f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
+
+    student_marks[students[i]] = {FINAL_MARK: len(
+        correct), FILE_NAME: answer_script_file_path}
     i += 1
 
 # write the autograded output to the csv file
