@@ -138,46 +138,49 @@ def get_answers(img1, img2, points, is_marking_scheme, show_intermediate_results
     return answer
 
 
-def calculate_score(o, y, distribution):
+def calculate_score(marking_scheme, answer_script, choice_distribution):
     idd = 0
-    distribution = np.array(distribution)
-    wrong = []
-    right = []
-    for i in range(0, distribution.shape[0]):
+    choice_distribution = np.array(choice_distribution)
+    incorrect = []
+    correct = []
+    for i in range(0, choice_distribution.shape[0]):
         j = 0
-        for k in range(0, distribution[i]):
-            if (o[idd] != y[idd] and j == 0):
-                wrong.append(i+1)
+        for k in range(0, choice_distribution[i]):
+            if (marking_scheme[idd] != answer_script[idd] and j == 0):
+                incorrect.append(i+1)
                 j = 1
             idd += 1
         if j == 0:
-            right.append(i+1)
-    return right, wrong
+            correct.append(i+1)
+    return correct, incorrect
 
 
-def plot_marked_answer_sheet(o, t, img, pts):
+def plot_marked_answer_sheet(marking_scheme, answer_script, template_img, bubble_coordinates, file_name='output.pdf', show_plot=False, save_plot=False):
     incorrect = []
     correct = []
     # print(np.array(pts).shape[0])
-    for i in range(np.array(pts).shape[0]):
-        if t[i] == 1:
-            if o[i] != t[i]:
-                incorrect.append(pts[i])
-            if o[i] == t[i]:
-                correct.append(pts[i])
+    for i in range(np.array(bubble_coordinates).shape[0]):
+        if answer_script[i] == 1:
+            if marking_scheme[i] != answer_script[i]:
+                incorrect.append(bubble_coordinates[i])
+            if marking_scheme[i] == answer_script[i]:
+                correct.append(bubble_coordinates[i])
 
     correct = np.array(correct)
     incorrect = np.array(incorrect)
     # print(correct)
-    plt.figure(figsize=(15, 15))
-    plt.imshow(np.array(img), cmap='gray')
+    plt.figure(figsize=(10, 10))
+    plt.imshow(np.array(template_img), cmap='gray')
     if len(correct) > 0:
         plt.scatter(correct[:, 0], correct[:, 1], c='g', s=15)
     if len(incorrect) > 0:
         plt.scatter(incorrect[:, 0], incorrect[:, 1], c='r', s=15)
     plt.title(
         "Correct answers are marked green, wrong answers are marked red and unresponded are left blank")
-    plt.show()
+    if show_plot:
+        plt.show()
+    if save_plot:
+        plt.savefig(file_name)
 
 
 def app():
@@ -196,16 +199,21 @@ def app():
     parser.add_argument(
         "--showmarked", help="Show the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
+        "--savemarked", help="Save the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
         "--studentslist", help="Name of the file containing a list of the students' index numbers in csv format", default="samples/students_list.csv")
     parser.add_argument(
-        "--output", help="Name of the output csv file containing a list of the students and respective marks in csv format", default="output.csv")
+        "--output", help="Directory to save the output files such as the output.csv file containing the list of students and respective marks in csv format", default="output/")
     parser.add_argument(
         "--ignoreinputcsv", help="Ignore the input list of students given as a CSV file and use the file name instead", action=argparse.BooleanOptionalAction, default=False)
 
     args = parser.parse_args()
 
     print("Running autograder...")
-
+    if not os.path.exists(args.output):
+        os.makedirs(args.output)
+    
+    output_file = os.path.join(args.output, "output.csv")
     template_img = read_image(args.template)
     marking_scheme_img = read_image(args.markingscheme)
     student_marks = dict()
@@ -248,9 +256,10 @@ def app():
                 f"Our observation for the first {len(choice_distribution)} questions are :")
             print("Correct answers are:", correct)
             print("Incorrect or Unresponded answers are:", incorrect)
-        if args.showmarked:
+        if args.showmarked or args.savemarked:
+            marked_file_name = os.path.join(args.output, f"{students[i]}_output.pdf")
             plot_marked_answer_sheet(
-                marking_scheme, answer_script, template_img, bubble_coordinates)
+                marking_scheme, answer_script, template_img, bubble_coordinates, file_name=marked_file_name, show_plot=args.showmarked, save_plot=args.savemarked)
 
         print(
             f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
@@ -260,7 +269,7 @@ def app():
         i += 1
 
     # write the autograded output to the csv file
-    with open(args.output, 'w') as output_file:
+    with open(output_file, 'w') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(['Index No', 'Autograded Final Mark', 'Answer Script'])
         for key, value in student_marks.items():
