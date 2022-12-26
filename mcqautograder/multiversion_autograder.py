@@ -24,16 +24,21 @@ def app():
     parser.add_argument(
         "--showmarked", help="Show the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
+        "--savemarked", help="Save the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
         "--studentslist", help="Name of the file containing a list of the students' index numbers in csv format", default="samples/students_list.csv")
     parser.add_argument(
-        "--output", help="Name of the output csv file containing a list of the students and respective marks in csv format", default="output.csv")
+        "--output", help="Directory to save the output files such as the output.csv file containing the list of students and respective marks in csv format", default="output/")
     parser.add_argument(
         "--numversions", help="Number of versions", default=2, type=int)
 
     args = parser.parse_args()
 
     print("Running multi version autograder...")
-
+    if not os.path.exists(args.output):
+        os.makedirs(args.output)
+    
+    output_file = os.path.join(args.output, "output.csv")
     template_imgs = {}
     marking_scheme_imgs = {}
     marking_schemes = {}
@@ -94,9 +99,10 @@ def app():
                 f"Marks for {len(choice_distribution)} questions: ")
             print("Correct answers are:", correct)
             print("Incorrect or Unresponded answers are:", incorrect)
-        if args.showmarked:
+        if args.showmarked or args.savemarked:
+            marked_file_name = os.path.join(args.output, f"{student}_output.png")
             plot_marked_answer_sheet(
-                marking_schemes[exam_paper_version], answer_script, template_imgs[exam_paper_version], bubble_coordinates)
+                marking_schemes[exam_paper_version], answer_script, template_imgs[exam_paper_version], bubble_coordinates, file_name=marked_file_name, show_plot=args.showmarked, save_plot=args.savemarked)
 
         print(
             f"Result for {student}: {len(correct)}/90, Incorrect: {len(incorrect)}/90, Version: {exam_paper_version}")
@@ -104,7 +110,7 @@ def app():
         student_marks[student] = {FINAL_MARK: len(correct), VERSION: exam_paper_version, FILE_NAME: answer_script_file_path}
 
     # write the autograded output to the csv file
-    with open(args.output, 'w') as output_file:
+    with open(output_file, 'w') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(['Index No', 'Autograded Final Mark', 'Version', 'Answer Script'])
         for key, value in student_marks.items():

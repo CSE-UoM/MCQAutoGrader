@@ -257,7 +257,7 @@ def app():
             print("Correct answers are:", correct)
             print("Incorrect or Unresponded answers are:", incorrect)
         if args.showmarked or args.savemarked:
-            marked_file_name = os.path.join(args.output, f"{students[i]}_output.pdf")
+            marked_file_name = os.path.join(args.output, f"{students[i]}_output.png")
             plot_marked_answer_sheet(
                 marking_scheme, answer_script, template_img, bubble_coordinates, file_name=marked_file_name, show_plot=args.showmarked, save_plot=args.savemarked)
 
