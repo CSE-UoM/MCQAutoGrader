@@ -34,7 +34,6 @@ def app():
 
     print("Running multi version autograder...")
 
-    num_versions = args.numversions
     template_imgs = {}
     marking_scheme_imgs = {}
     marking_schemes = {}
@@ -46,7 +45,7 @@ def app():
         try:
             template_imgs[i] = read_image(os.path.join(args.templates, f"{i}.jpg"))
         except FileNotFoundError as e:
-            print(f"Template file not found: ", e)
+            print(f"Template file is not found: ", e)
             sys.exit()
 
     # read marking schemes
@@ -54,7 +53,7 @@ def app():
         try:
             marking_scheme_imgs[i] = read_image(os.path.join(args.markingschemes, f"{i}.jpg"))
         except FileNotFoundError as e:
-            print(f"Marking scheme file not found: ", e)
+            print(f"Marking scheme file is not found: ", e)
             sys.exit()
 
     bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
@@ -92,7 +91,7 @@ def app():
         correct, incorrect = calculate_score(marking_schemes[exam_paper_version], answer_script, choice_distribution)
         if args.verbose:
             print(
-                f"Our observation for the first {len(choice_distribution)} questions are :")
+                f"Marks for {len(choice_distribution)} questions: ")
             print("Correct answers are:", correct)
             print("Incorrect or Unresponded answers are:", incorrect)
         if args.showmarked:
