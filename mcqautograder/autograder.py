@@ -3,12 +3,15 @@ import os
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageFilter, ImageEnhance
 import cv2
 from numpy import linalg as LA
 import imutils
 import argparse
 import csv
+import time
+from statistics import mean
+
 
 FINAL_MARK = 'mark'
 FILE_NAME = 'file_name'
@@ -16,6 +19,10 @@ FILE_NAME = 'file_name'
 
 def read_image(path):
     img = Image.open(path).convert('L')
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(11)
+    color = ImageEnhance.Color(img)
+    img = color.enhance(0.0)
     img.resize((1000, 1000))
     return img
 
@@ -53,17 +60,41 @@ def get_homography(img1, img2):
 
 
 def get_coordinates_of_bubbles():
-    x = 126  # starting x coordinate of the first bubble
-    y = 145  # starting y coordinate of the first bubble
+    # y = x/105 + 143
+    x = 390  # starting x coordinate of the first bubble
+    y = 510  # starting y coordinate of the first bubble
+    x_offset = 111
+    y_offset = 92.3
+    x_column_offset = 780
     coordinates = []
-    for i in range(3):
-        for j in range(30):
-            for k in range(5):
-                a = [x+(k*34), y+(j*28)]
+    for i in range(3):  # for every column
+        if i == 1:
+            y = 515
+            # y_offset = 92.3
+        if i == 2:
+            y = 520
+            # y_offset = 92.3
+        for j in range(30):  # for every question
+            for k in range(5):  # for every choice
+                __x_offset = k*x_offset
+                __y_offset = j*y_offset
+                x_i = x+__x_offset
+                y_i = y+__y_offset
+                # y_i = (x_i/105)+143
+                a = [x_i, y_i]
                 coordinates.append(a)
-        x += 219
+            x = x - 1.8
+            # y_offset *= 0.9985
+        # y_offset = 94
+        # if i==1:
+            # x_column_offset = 790
+        x += x_column_offset
     # The number of choices of each question in a sequential manner
     choice_distribution = [5 for i in range(90)]
+    # coordinates.append([240, 145])  # Top left
+    # coordinates.append([2340, 165]) # Top right
+    # coordinates.append([175, 3260]) # Bottom left
+    # coordinates.append([2280, 3290])    # Bottom right
     return coordinates, choice_distribution
 
 
@@ -143,16 +174,28 @@ def calculate_score(marking_scheme, answer_script, choice_distribution):
     choice_distribution = np.array(choice_distribution)
     incorrect = []
     correct = []
-    for i in range(0, choice_distribution.shape[0]):
-        j = 0
-        for k in range(0, choice_distribution[i]):
-            if (marking_scheme[idd] != answer_script[idd] and j == 0):
-                incorrect.append(i+1)
-                j = 1
+    more_than_one_marked = []
+    not_marked = []
+    correct_mark = 0
+    for i in range(0, choice_distribution.shape[0]):    # for every question
+        correct_choice = False
+        marked_choices_per_question = 0
+        for k in range(0, choice_distribution[i]):  # for every choice
+            if marking_scheme[idd] == 1 and marking_scheme[idd] == answer_script[idd]:
+                correct_choice = True
+            if answer_script[idd] == 1:
+                marked_choices_per_question += 1
             idd += 1
-        if j == 0:
+        if correct_choice and marked_choices_per_question == 1:
             correct.append(i+1)
-    return correct, incorrect
+            correct_mark += 1
+        elif marked_choices_per_question > 1:
+            more_than_one_marked.append(i+1)
+        elif marked_choices_per_question == 0:
+            not_marked.append(i+1)
+        else:
+            incorrect.append(i+1)
+    return correct, incorrect, more_than_one_marked, not_marked
 
 
 def plot_marked_answer_sheet(marking_scheme, answer_script, template_img, bubble_coordinates, file_name='output.pdf', show_plot=False, save_plot=False):
@@ -181,19 +224,20 @@ def plot_marked_answer_sheet(marking_scheme, answer_script, template_img, bubble
         plt.show()
     if save_plot:
         plt.savefig(file_name)
+    plt.close()
 
 
 def app():
-
+    start = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", help="Print detailed messages",
                         action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme",
-                        default="samples/marking_scheme.jpg")
+                        default="/home/gayashan/projects/cse/2022/MCQAutoGrader/samples/marking_schemes/1.jpg")
     parser.add_argument(
-        "--template", help="Path to the template of the bubble sheet", default="samples/template.jpg")
+        "--template", help="Path to the template of the bubble sheet", default="/home/gayashan/projects/cse/cs1033/templates/1.jpg")
     parser.add_argument(
-        "--answers", help="Path to the directory containing scanned answer scripts", default="samples/answers/")
+        "--answers", help="Path to the directory containing scanned answer scripts", default="samples/answers3/")
     parser.add_argument(
         "--debug", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
@@ -205,22 +249,28 @@ def app():
     parser.add_argument(
         "--output", help="Directory to save the output files such as the output.csv file containing the list of students and respective marks in csv format", default="output/")
     parser.add_argument(
-        "--ignoreinputcsv", help="Ignore the input list of students given as a CSV file and use the file name instead", action=argparse.BooleanOptionalAction, default=False)
+        "--outputcsv", help="Name of the output file containing the list of students and respective marks in csv format", default="output.csv")
+    parser.add_argument(
+        "--ignoreinputcsv", help="Ignore the input list of students given as a CSV file and use the file name instead", action=argparse.BooleanOptionalAction, default=True)
 
     args = parser.parse_args()
 
     print("Running autograder...")
     if not os.path.exists(args.output):
         os.makedirs(args.output)
+
+    output_file_name = os.path.join(args.output, args.outputcsv)
+    with open(output_file_name, 'w') as output_file:
+        writer = csv.writer(output_file)
+        writer.writerow(['Index No', 'Autograded Final Mark', 'More than one choice marked', 'No choices marked', 'Answer Script'])
     
-    output_file = os.path.join(args.output, "output.csv")
     template_img = read_image(args.template)
     marking_scheme_img = read_image(args.markingscheme)
     student_marks = dict()
     bubble_coordinates, choice_distribution = get_coordinates_of_bubbles()
     marking_scheme = get_answers(
         template_img, marking_scheme_img, bubble_coordinates, is_marking_scheme=True, show_intermediate_results=args.debug)
-
+    per_answer_time_list = []
     i = 0
     answer_script_files_list = sorted(glob.glob(args.answers + '*.jpg'))
 
@@ -243,40 +293,50 @@ def app():
             f"Entries in the scanned directory: {len(answer_script_files_list)}")
         sys.exit()
 
-    for answer_script_file_path in answer_script_files_list:
-        answer_script_img = read_image(answer_script_file_path)
-
-        answer_script = get_answers(template_img, answer_script_img,
-                                    bubble_coordinates, is_marking_scheme=False, show_intermediate_results=args.debug)
-
-        correct, incorrect = calculate_score(
-            marking_scheme, answer_script, choice_distribution)
-        if args.verbose:
-            print(
-                f"Our observation for the first {len(choice_distribution)} questions are :")
-            print("Correct answers are:", correct)
-            print("Incorrect or Unresponded answers are:", incorrect)
-        if args.showmarked or args.savemarked:
-            marked_file_name = os.path.join(args.output, f"{students[i]}_output.png")
-            plot_marked_answer_sheet(
-                marking_scheme, answer_script, template_img, bubble_coordinates, file_name=marked_file_name, show_plot=args.showmarked, save_plot=args.savemarked)
-
-        print(
-            f"Result for {students[i]}: {len(correct)}/90, Incorrect: {len(incorrect)}/90")
-
-        student_marks[students[i]] = {FINAL_MARK: len(
-            correct), FILE_NAME: answer_script_file_path}
-        i += 1
-
-    # write the autograded output to the csv file
-    with open(output_file, 'w') as output_file:
+    with open(output_file_name, 'a') as output_file:
         writer = csv.writer(output_file)
-        writer.writerow(['Index No', 'Autograded Final Mark', 'Answer Script'])
-        for key, value in student_marks.items():
-            writer.writerow([key, value[FINAL_MARK], value[FILE_NAME]])
 
+        for answer_script_file_path in answer_script_files_list:
+            start_per_answer = time.time()
+            answer_script_img = read_image(answer_script_file_path)
+
+            answer_script = get_answers(template_img, answer_script_img,
+                                        bubble_coordinates, is_marking_scheme=False, show_intermediate_results=args.debug)
+
+            correct, incorrect, more_than_one_marked, not_marked = calculate_score(
+                marking_scheme, answer_script, choice_distribution)
+            if args.verbose:
+                print(
+                    f"Our observation for the first {len(choice_distribution)} questions are :")
+                print("Correct answers are:", correct)
+                print("Incorrect or Unresponded answers are:", incorrect)
+                print("More than one choice is marked:", more_than_one_marked)
+                print("No choices were marked:", not_marked)
+            if args.showmarked or args.savemarked:
+                marked_file_name = os.path.join(
+                    args.output, f"{students[i]}_output.png")
+                plot_marked_answer_sheet(
+                    marking_scheme, answer_script, template_img, bubble_coordinates, file_name=marked_file_name, show_plot=args.showmarked, save_plot=args.savemarked)
+            
+            final_mark = len(correct)
+            print(
+                f"{i+1} Result for {students[i]}: {final_mark}/90, Incorrect: {len(incorrect)}, More than one: {len(more_than_one_marked)}, Not marked: {len(not_marked)}")
+
+            
+            student_marks[students[i]] = {FINAL_MARK: final_mark, FILE_NAME: answer_script_file_path}
+            # append the row to the output csv file
+            writer.writerow([students[i], final_mark, more_than_one_marked, not_marked, answer_script_file_path])
+            i += 1
+            end_per_answer = time.time()
+            per_answer_time_list.append(end_per_answer - start_per_answer)
+
+    end = time.time()
     print(
-        f"Autograding is complete. Output has been saved in {args.output}.")
+        f"Autograding is complete. Output has been saved in {output_file_name}.")
+    total_elapsed_time = round(end - start, 2)
+    print(f"    Total elapsed time: {total_elapsed_time}s")
+    average_time_elapsed_per_paper = round(mean(per_answer_time_list), 2)
+    print(f"    Average time per paper: {average_time_elapsed_per_paper}s")
 
 
 if __name__ == "__main__":
