@@ -2,6 +2,7 @@ import sys
 import os
 import glob
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFilter, ImageEnhance
 import cv2
@@ -18,10 +19,10 @@ FINAL_MARK = 'mark'
 FILE_NAME = 'file_name'
 
 
-def read_image(path, config):
+def read_image(path, enhance_contrast_val):
     img = Image.open(path).convert('L')
     enhancer = ImageEnhance.Contrast(img)
-    img = enhancer.enhance(config["image_processing"]["enhance_contrast"])
+    img = enhancer.enhance(enhance_contrast_val)
     color = ImageEnhance.Color(img)
     img = color.enhance(0.0)
     img.resize((1000, 1000))
@@ -240,11 +241,10 @@ def print_to_stdout_and_file(file_handler, text, display_index):
     file_handler.write(text + '\n')
 
 
-def get_facility_index(version, facility_index_file_name, num_students, facility_index, config, display_index=False):
+def get_facility_index(version, facility_index_file_name, num_students, facility_index, easy_threshold, difficult_threshold, display_index=False):
     difficult_questions = []
     easy_questions = []
-    easy_threshold = config['outputs']['facility_index']['easy_threshold']
-    difficult_threshold = config['outputs']['facility_index']['difficult_threshold']
+    
     with open(facility_index_file_name, 'w') as facility_index_file:
         heading = f"Facility index for {version}:"
         print_to_stdout_and_file(facility_index_file, heading, display_index)
@@ -273,6 +273,10 @@ def get_facility_index(version, facility_index_file_name, num_students, facility
             print_to_stdout_and_file(
                 facility_index_file, easy_q_stat, display_index)
 
+def get_configuration_parameter(cmd_line_argument, config_file_parameter):
+    if cmd_line_argument:
+        return cmd_line_argument
+    return config_file_parameter
 
 def app():
     start = time.time()
@@ -281,41 +285,49 @@ def app():
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", help="Print detailed messages", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--debug", help="Show intermediate results and debug messages", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--showmarked", help="Show the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--savemarked", help="Save the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--ignoreinputcsv", help="Ignore the input list of students given as a CSV file and use the file name instead", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--showfacilityindex", help="Show the facility index on the screen", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--config", help="Configuration file for the particular version", default="configurations/v2.json")
-    parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme", default="samples/marking_schemes/2.jpg")
-    parser.add_argument("--template", help="Path to the template of the bubble sheet", default="samples/templates/2.jpg")
-    parser.add_argument("--answers", help="Path to the directory containing scanned answer scripts", default="samples/answers_v2_test/")
-    parser.add_argument("--studentslist", help="Name of the file containing a list of the students' index numbers in csv format", default="samples/students_list.csv")
-    parser.add_argument("--output", help="Directory to save the output files such as the output.csv file containing the list of students and respective marks in csv format", default="output/")
-    parser.add_argument("--outputcsv", help="Name of the output file containing the list of students and respective marks in csv format", default="output.csv")
-    parser.add_argument("--version", help="Version of the exam paper", default="v1")
+    parser.add_argument("--config", help="Configuration file for the particular version", default="configurations/v1.json")
+    parser.add_argument("--showmarked", help="Show the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--savemarked", help="Save the answer script marked with correct and incorrect answers", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--showfacilityindex", help="Show the facility index on the screen", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--template", help="Path to the template of the bubble sheet")
+    parser.add_argument("--markingscheme", help="Path to the bubble sheet of the marking scheme")
+    parser.add_argument("--answers", help="Path to the directory containing scanned answer scripts")
+    parser.add_argument("--studentslist", help="Name of the file containing a list of the students' index numbers in csv format")
+    parser.add_argument("--output", help="Directory to save the output files such as the output.csv file containing the list of students and respective marks in csv format")
+    parser.add_argument("--outputcsv", help="Name of the output file containing the list of students and respective marks in csv format")
+    parser.add_argument("--version", help="Version of the exam paper")
     args = parser.parse_args()
 
-    version = args.version
-    debug = args.debug
     verbose = args.verbose
-    output_dir = args.output
-    config_file = args.config
-    answers_dir = args.answers
-    students_list_file = args.studentslist
-    output_csv_file = args.outputcsv
+    debug = args.debug
     ignore_input_csv = args.ignoreinputcsv
-    template_file = args.template
-    marking_scheme_file = args.markingscheme
-    show_facility_index = args.showfacilityindex
-    show_marked_answer = args.showmarked
-    save_marked_answer = args.savemarked
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    config_file = args.config
 
     with open(config_file, 'r') as file:
         print(f"Reading configurations from {config_file}")
         config = json.load(file)
+
+    show_marked_answer = get_configuration_parameter(args.showmarked, config['outputs']['show_marked_answer'])
+    save_marked_answer = get_configuration_parameter(args.savemarked, config['outputs']['save_marked_answer'])
+    show_facility_index = get_configuration_parameter(args.showfacilityindex, config['outputs']['facility_index']['show_facility_index'])
+    template_file = get_configuration_parameter(args.template, config['inputs']['template'])
+    marking_scheme_file = get_configuration_parameter(args.markingscheme, config['inputs']['marking_scheme'])
+    answers_dir = get_configuration_parameter(args.answers, config['inputs']['answers_directory'])
+    students_list_file = get_configuration_parameter(args.studentslist, config['inputs']['students_list'])
+    output_dir = get_configuration_parameter(args.output, config['outputs']['output_directory'])
+    output_csv_file = get_configuration_parameter(args.outputcsv, config['outputs']['output_csv_file_name'])
+    version = get_configuration_parameter(args.version, config['version'])
+
+    enhance_contrast_val = config["image_processing"]["enhance_contrast"]
+    output_file_name = os.path.join(output_dir, output_csv_file)
+    facility_index_file_name = os.path.join(output_dir, config['outputs']['facility_index']['facility_index_file_name'])
+    easy_threshold = config['outputs']['facility_index']['easy_threshold']
+    difficult_threshold = config['outputs']['facility_index']['difficult_threshold']
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
 
     answer_script_files_list = sorted(glob.glob(answers_dir + '*.jpg'))
     if not ignore_input_csv:
@@ -337,16 +349,13 @@ def app():
             f"Entries in the {answers_dir} directory: {len(answer_script_files_list)}")
         sys.exit()
 
-    output_file_name = os.path.join(output_dir, output_csv_file)
-    facility_index_file_name = os.path.join(output_dir, f"facility_index_{version}.txt")
     with open(output_file_name, 'w') as output_file:
         writer = csv.writer(output_file)
         writer.writerow(['Index No', 'Autograded Final Mark',
                         'More than one choice marked', 'No choices marked', 'Column 1 Total', 'Column 2 Total', 'Column 3 Total', 'Answer Script'])
 
-    template_img = read_image(template_file, config)
-    marking_scheme_img = read_image(marking_scheme_file, config)
-    student_marks = dict()
+    template_img = read_image(template_file, enhance_contrast_val)
+    marking_scheme_img = read_image(marking_scheme_file, enhance_contrast_val)
     bubble_coordinates, choice_distribution = get_coordinates_of_bubbles(
         config)
     marking_scheme = get_answers(
@@ -364,7 +373,7 @@ def app():
 
         for answer_script_file_path in answer_script_files_list:
             start_per_answer = time.time()
-            answer_script_img = read_image(answer_script_file_path, config)
+            answer_script_img = read_image(answer_script_file_path, enhance_contrast_val)
 
             try:
                 answer_script = get_answers(template_img, answer_script_img,
@@ -397,7 +406,6 @@ def app():
             print(
                 f"{i+1} Result for {students[i]}: {final_mark}/90, Incorrect: {len(incorrect)}, More than one: {len(more_than_one_marked)}, Not marked: {len(not_marked)}")
 
-            # student_marks[students[i]] = {FINAL_MARK: final_mark, FILE_NAME: answer_script_file_path}
             # append the row to the output csv file
             writer.writerow(
                 [students[i], final_mark, more_than_one_marked, not_marked, columnwise_total[0], columnwise_total[1], columnwise_total[2], answer_script_file_path])
@@ -414,7 +422,11 @@ def app():
     print(f"    Average time per paper: {average_time_elapsed_per_paper}s")
 
     get_facility_index(version, facility_index_file_name,
-                       len(answer_script_files_list), facility_index, config, display_index=show_facility_index)
+                       len(answer_script_files_list), 
+                       facility_index, 
+                       easy_threshold=easy_threshold, 
+                       difficult_threshold=difficult_threshold, 
+                       display_index=show_facility_index)
 
 
 if __name__ == "__main__":
