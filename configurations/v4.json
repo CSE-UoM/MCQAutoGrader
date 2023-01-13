@@ -10,8 +10,8 @@
     "outputs" : {
         "output_directory" : "output/",
         "output_csv_file_name" : "v1_output.csv",
-        "show_marked_file" : false,
-        "save_marked_file" : true,
+        "show_marked_answer" : false,
+        "save_marked_answer" : true,
         "facility_index" : {
             "show_facility_index" : false,
             "facility_index_file_name" : "facility_index_v1.txt",
